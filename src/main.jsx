@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {BrowserRouter,Routes,Route,Link,useParams,useNavigate} from 'react-router-dom';
 import {ShoppingBag,Menu,X,ArrowRight,Plus,Minus,Trash2,Lock,LogOut,Package,ChevronLeft,ChevronRight} from 'lucide-react';
@@ -20,7 +20,67 @@ function App(){
  <footer><div className="wrap footergrid"><div><Link className="brand" to="/">SCENT <span>ATELIER</span></Link><p>Designer fragrances, curated in one place.</p></div><div><b>Explore</b><Link to="/shop">All fragrances</Link><Link to="/cart">Your bag</Link></div><div><b>Information</b><p>Contact: hello@example.com</p><p>Shipping and returns policies coming soon.</p></div></div><div className="wrap footnote">© {new Date().getFullYear()} SCENT ATELIER · Demonstration storefront. No payments accepted.</div></footer></>;
 }
 function galleryImages(p){return [...new Set([...(Array.isArray(p.images)?p.images:[]),p.image_url].filter(Boolean))].slice(0,8)}
-function Gallery({p,detail=false}){const images=galleryImages(p);const [index,setIndex]=useState(0),[zoom,setZoom]=useState(false);const current=Math.min(index,Math.max(images.length-1,0));const change=(d)=>setIndex(i=>(i+d+images.length)%images.length);const [touch,setTouch]=useState(null);return <div className={detail?'gallery detailgallery':'gallery cardgallery'} onTouchStart={e=>setTouch(e.touches[0].clientX)} onTouchEnd={e=>{if(touch!==null&&images.length>1&&Math.abs(e.changedTouches[0].clientX-touch)>40)change(e.changedTouches[0].clientX<touch?1:-1);setTouch(null)}}><div className="gallerymain"><img src={images[current]||'/placeholder.svg'} alt={`${p.name} — image ${current+1}`} loading="lazy" onClick={()=>detail&&setZoom(true)}/>{images.length>1&&<><button type="button" className="galleryarrow prev" aria-label="Previous image" onClick={()=>change(-1)}><ChevronLeft size={19}/></button><button type="button" className="galleryarrow next" aria-label="Next image" onClick={()=>change(1)}><ChevronRight size={19}/></button><span className="gallerycount">{current+1} / {images.length}</span></>}</div>{detail&&images.length>1&&<div className="gallerythumbs">{images.map((url,i)=><button key={url} className={i===current?'chosen':''} onClick={()=>setIndex(i)} type="button"><img src={url} alt={`View ${i+1}`}/></button>)}</div>}{zoom&&<div className="galleryzoom" role="dialog" aria-modal="true" onClick={()=>setZoom(false)}><button className="zoomclose" onClick={()=>setZoom(false)} aria-label="Close"><X/></button><img src={images[current]} alt={p.name} onClick={e=>e.stopPropagation()}/></div>}</div>}
+function Gallery({p,detail=false}){
+  const images=galleryImages(p);
+  const [index,setIndex]=useState(0);
+  const [zoom,setZoom]=useState(false);
+  const start=useRef(null);
+  const ignoreClick=useRef(false);
+  const current=Math.min(index,Math.max(images.length-1,0));
+  useEffect(()=>{setIndex(0);setZoom(false)},[p.id]);
+  const change=(delta)=>{
+    if(images.length<2)return;
+    setIndex(i=>(i+delta+images.length)%images.length);
+  };
+  const onPointerDown=(e)=>{
+    if(images.length<2||e.target.closest('button'))return;
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    start.current={x:e.clientX,y:e.clientY,id:e.pointerId};
+  };
+  const onPointerUp=(e)=>{
+    const s=start.current;
+    start.current=null;
+    if(!s||s.id!==e.pointerId)return;
+    const dx=e.clientX-s.x;
+    const dy=e.clientY-s.y;
+    if(Math.abs(dx)>=45&&Math.abs(dx)>Math.abs(dy)*1.2){
+      ignoreClick.current=true;
+      change(dx<0?1:-1);
+      window.setTimeout(()=>{ignoreClick.current=false},250);
+    }
+  };
+  return <div className={detail?'gallery detailgallery':'gallery cardgallery'}>
+    <div className="gallerymain"
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerCancel={()=>{start.current=null}}>
+      <img src={images[current]||'/placeholder.svg'}
+        alt={`${p.name} — image ${current+1}`}
+        draggable="false" loading="lazy"
+        onClick={()=>{if(detail&&!ignoreClick.current)setZoom(true)}}/>
+      {images.length>1&&<>
+        <button type="button" className="galleryarrow prev"
+          aria-label="Previous image" onClick={()=>change(-1)}><ChevronLeft size={19}/></button>
+        <button type="button" className="galleryarrow next"
+          aria-label="Next image" onClick={()=>change(1)}><ChevronRight size={19}/></button>
+        <span className="gallerycount">{current+1} / {images.length}</span>
+      </>}
+    </div>
+    {detail&&images.length>1&&<div className="gallerythumbs" aria-label="Product image thumbnails">
+      {images.map((url,i)=><button key={url} type="button"
+        className={i===current?'chosen':''} aria-label={`Show image ${i+1}`}
+        aria-pressed={i===current} onClick={()=>setIndex(i)}>
+        <img src={url} alt={`${p.name} thumbnail ${i+1}`} loading="lazy"/>
+      </button>)}
+    </div>}
+    {zoom&&<div className="galleryzoom" role="dialog" aria-modal="true"
+      aria-label="Enlarged product image" onClick={()=>setZoom(false)}>
+      <button type="button" className="zoomclose" onClick={()=>setZoom(false)}
+        aria-label="Close"><X/></button>
+      <img src={images[current]} alt={p.name} onClick={e=>e.stopPropagation()}/>
+    </div>}
+  </div>;
+}
 function ProductCard({p,add}){return <article className="product"><Gallery p={p}/><div className="productmeta"><span>{p.category} · {p.volume}</span><Link to={'/product/'+p.id}><h3>{p.name}</h3></Link><div className="productbottom"><strong>{money(p.price)}</strong><button disabled={p.stock<=0} onClick={()=>add(p)} className="smalladd" aria-label={'Add '+p.name+' to bag'}><Plus size={18}/></button></div></div></article>}
 function Home({products,loading,add}){return <><section className="hero"><div className="heroimage"/><div className="wrap heroinside"><div className="herotext"><p className="eyebrow">DESIGNER FRAGRANCES</p><h1>Discover<br/>your next<br/><em>signature scent.</em></h1><p>Explore a curated selection of fragrances from iconic houses. All listed at $49, with availability confirmed before checkout.</p><Link className="btn dark" to="/shop">Explore the collection <ArrowRight size={17}/></Link></div></div></section><section className="wrap section"><div className="sectionheading"><div><p className="eyebrow">CURATED FOR YOU</p><h2>Featured fragrances</h2></div><Link className="underlink" to="/shop">View all fragrances <ArrowRight size={17}/></Link></div><div className="products">{products.filter(p=>p.featured).slice(0,4).map(p=><ProductCard key={p.id} p={p} add={add}/>)}</div>{loading&&<p>Loading products…</p>}</section><section className="statement"><p className="eyebrow">THE COLLECTION</p><h2>Many houses.<br/><em>One destination.</em></h2><p>Discover a growing selection of designer and niche fragrances.</p></section></>}
 function Shop({products,add}){const initial=new URLSearchParams(window.location.search).get('category')||'All';const [category,setCategory]=useState(initial);useEffect(()=>setCategory(new URLSearchParams(window.location.search).get('category')||'All'),[window.location.search]);const categories=['All',...new Set(products.map(p=>p.category))];return <main className="wrap section"><p className="eyebrow">DISCOVER YOUR SIGNATURE</p><h1 className="pagetitle">The collection</h1><p className="muted">Discover fragrances by brand. Product sizes and availability are being verified.</p><div className="filters">{categories.map(c=><button key={c} className={category===c?'selected':''} onClick={()=>setCategory(c)}>{c}</button>)}</div><div className="products">{products.filter(p=>category==='All'||p.category===category).map(p=><ProductCard key={p.id} p={p} add={add}/>)}</div>{!products.length&&<p>No products yet.</p>}</main>}
