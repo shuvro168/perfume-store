@@ -307,3 +307,28 @@
   .galleryarrow { width:34px; height:34px; }
   .gallerythumbs button { flex-basis:60px; width:60px; height:74px; }
 }
+/* SCENT ATELIER V4.2 — paste at the very bottom of src/style.css */
+.luxury-detail-page{padding-top:40px}
+.luxury-detail{grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);gap:clamp(30px,5vw,72px);align-items:start}
+.luxury-detail .detailgallery{min-width:0;position:relative}
+.luxury-detail .gallerymain{aspect-ratio:4/5;background:#f8f6f2;border-radius:8px;overflow:hidden;touch-action:pan-y}
+.luxury-detail .gallerymain>img{width:100%;height:100%;object-fit:contain;object-position:center;display:block}
+.luxury-detail .gallerythumbs{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;overflow:visible;padding:12px 0 0;max-width:100%}
+.luxury-detail .gallerythumbs button{width:100%;height:auto;min-width:0;aspect-ratio:4/5;flex:none;border:1px solid #ded7ce;border-radius:4px;padding:3px;background:#f8f6f2;overflow:hidden}
+.luxury-detail .gallerythumbs button.chosen{border:2px solid #292923}
+.luxury-detail .gallerythumbs img{width:100%;height:100%;object-fit:contain}
+.luxury-detail .galleryarrow{width:42px;height:42px;box-shadow:0 3px 12px #00000012}
+.luxury-detailinfo{min-width:0;padding-top:12px}
+.luxury-detailinfo h1{font-size:clamp(38px,4vw,58px);line-height:1.15;margin:14px 0 20px;overflow-wrap:anywhere}
+.luxury-price{display:flex;align-items:baseline;gap:16px;margin-bottom:12px}.luxury-price strong{font-size:25px;font-weight:600}.luxury-price del{font-size:14px;color:#999}
+.luxury-spec{font-size:13px;color:#776c62;margin:0 0 28px}.luxury-spec span{padding:0 7px}
+.luxury-section{border-top:1px solid #e4ddd4;padding:23px 0 20px}.luxury-section h2{font:400 25px 'Playfair Display',serif;margin:0 0 13px}
+.luxury-description{font-size:14px;line-height:1.9;color:#615b54;white-space:pre-line;max-width:65ch;margin:0}
+.luxury-notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid #e8e0d7;background:#f7f3ed;border-radius:8px;padding:16px 8px}
+.luxury-notes>div{padding:0 10px;min-width:0;text-align:center}.luxury-notes>div+div{border-left:1px solid #e2d9cf}
+.luxury-notes h3{font:400 17px 'Playfair Display',serif;margin:0 0 8px}.luxury-notes p{font-size:12px;line-height:1.65;color:#6d6258;margin:0;overflow-wrap:anywhere}
+.luxury-facts{display:flex;flex-wrap:wrap;gap:18px;border-top:1px solid #e4ddd4;padding:20px 0}.luxury-facts>div{display:flex;flex-direction:column;gap:5px;min-width:90px}.luxury-facts b{font-size:11px;text-transform:uppercase;letter-spacing:1px}.luxury-facts span{font-size:12px;color:#7a6f65}
+.luxury-extra{margin:0 0 16px}.luxury-stock{font-size:13px;color:#536d42;margin:12px 0 16px}
+.luxury-detailinfo>.btn{margin:0 0 10px}
+@media(max-width:850px){.luxury-detail{gap:28px}}
+@media(max-width:700px){.luxury-detail{grid-template-columns:1fr}.luxury-detail-page{padding-top:25px}.luxury-detail .gallerymain{aspect-ratio:4/5}.luxury-detail .gallerythumbs{grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}.luxury-detail .gallerythumbs button{padding:2px}.luxury-detailinfo{padding-top:12px}.luxury-detailinfo h1{font-size:39px}.luxury-notes{padding:12px 4px}.luxury-notes>div{padding:0 6px}}
