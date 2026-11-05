@@ -350,3 +350,11 @@
 .luxury-description{line-height:1.75;font-size:13px;white-space:pre-line;max-width:62ch}
 .luxury-section{padding:18px 0}
 @media(max-width:700px){.luxury-detail{grid-template-columns:1fr;gap:24px}.luxury-detail .gallerythumbs{gap:4px}.luxury-detailinfo h1{font-size:38px}}
+
+/* SCENT ATELIER V4.4 - Smart Product Import */
+.smart-import{border:1px solid #d9cfc1;border-radius:12px;padding:20px;margin-bottom:22px;background:#faf8f4}
+.smart-import h3{font-size:19px;margin:0 0 8px}.smart-import textarea{width:100%;box-sizing:border-box;min-height:140px;white-space:pre-wrap}
+.import-actions{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}.import-preview{padding:14px;border:1px solid #cfc3b1;border-radius:8px;background:white}
+.import-preview dl{display:grid;grid-template-columns:minmax(100px,1fr) 2fr;gap:8px 12px;max-height:320px;overflow:auto;font-size:13px}
+.import-preview dt{font-weight:600;overflow-wrap:anywhere}.import-preview dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:550px){.smart-import{padding:12px}.import-preview dl{grid-template-columns:1fr}.import-preview dd{margin-bottom:8px}}
