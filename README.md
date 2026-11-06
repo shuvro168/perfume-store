@@ -87,3 +87,4 @@ The local preview contains 40 candidate product-photo entries (some may duplicat
 - Product photography uses a generic placeholder; replace with accurately matched, licensed/authorized images before sale.
 - The initial preview entries are local demo data, **not automatically inserted into Supabase**. When Supabase is enabled, add verified products via `/admin` (or separately prepare a reviewed import).
 - The site has not been tested on a live Netlify deployment. If the Netlify build fails, share the build log for troubleshooting.
+V5.0 checkout branch deployment test
