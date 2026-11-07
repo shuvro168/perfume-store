@@ -364,3 +364,6 @@
 
 /* V5.1 order pages */
 .panel + .panel{margin-top:16px}.checkoutnotice{padding:16px;border:1px solid #d8d0c5}
+
+/* WhatsApp ordering */
+.wa-order-panel{display:flex;flex-direction:column;align-items:flex-start;gap:16px}.wa-order-panel .wide{align-self:stretch;justify-content:center}.wa-order-panel h2,.wa-order-panel p{margin:0}
