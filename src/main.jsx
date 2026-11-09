@@ -135,66 +135,104 @@ function Shop({products,add}){const initial=new URLSearchParams(window.location.
 // Editorial experience cards and customer reviews are intentionally separate.
 function ProductInsights({productId}){
  const [cards,setCards]=useState([]),[reviews,setReviews]=useState([]),[photos,setPhotos]=useState({});
- const [settings,setSettings]=useState({rotation_seconds:2,max_display_reviews:99,enabled:true});
+ const [settings,setSettings]=useState({max_display_reviews:99,enabled:true});
  const [cardIndex,setCardIndex]=useState(0),[reviewIndex,setReviewIndex]=useState(0);
- const [error,setError]=useState('');
+ const [expandedReviews,setExpandedReviews]=useState({}),[expandedCards,setExpandedCards]=useState({});
+ const [photoPreview,setPhotoPreview]=useState(null),[error,setError]=useState('');
+ const [reviewPaused,setReviewPaused]=useState(false);
  useEffect(()=>{
   let active=true;
-  setCards([]);setReviews([]);setPhotos({});setCardIndex(0);setReviewIndex(0);setError('');
+  setCards([]);setReviews([]);setPhotos({});setCardIndex(0);setReviewIndex(0);
+  setExpandedReviews({});setExpandedCards({});setError('');
   if(!supabase)return;
   (async()=>{
    const results=await Promise.all([
     supabase.from('product_experience_cards').select('id,content,position').eq('product_id',productId).order('position',{ascending:true}).limit(1000),
     supabase.from('product_reviews').select('id,customer_name,avatar_url,rating,review_text,verified_purchase,created_at').eq('product_id',productId).eq('status','published').order('created_at',{ascending:false}).limit(1000),
-    supabase.from('review_settings').select('rotation_seconds,max_display_reviews,enabled').eq('id',1).maybeSingle()
+    supabase.from('review_settings').select('max_display_reviews,enabled').eq('id',1).maybeSingle()
    ]);
    if(!active)return;
    if(!results[0].error)setCards(results[0].data||[]);
    else console.error('Experience cards:',results[0].error);
    if(!results[2].error&&results[2].data)setSettings(results[2].data);
    if(results[1].error){console.error('Customer reviews:',results[1].error);setError('Customer reviews are temporarily unavailable.');return}
-   const rows=results[1].data||[];
-   setReviews(rows);
+   const rows=results[1].data||[];setReviews(rows);
    if(rows.length){
     const {data,error:photoError}=await supabase.from('review_images').select('review_id,image_url,position').in('review_id',rows.map(r=>r.id)).order('position',{ascending:true});
     if(!active)return;
     if(photoError)console.error('Review photos:',photoError);
-    else{
-     const grouped={};
-     (data||[]).forEach(item=>{(grouped[item.review_id]??=[]).push(item.image_url)});
-     setPhotos(grouped);
-    }
+    else{const grouped={};(data||[]).forEach(item=>{(grouped[item.review_id]??=[]).push(item.image_url)});setPhotos(grouped)}
    }
   })();
   return()=>{active=false};
  },[productId]);
- const seconds=Math.max(2,Number(settings.rotation_seconds)||2);
- useEffect(()=>{
-  if(cards.length<2)return;
-  const timer=window.setInterval(()=>setCardIndex(i=>(i+1)%cards.length),2000);
-  return()=>window.clearInterval(timer);
- },[cards.length,productId]);
  const visibleReviews=settings.enabled?reviews.slice(0,Math.max(1,Number(settings.max_display_reviews)||99)):[];
+ const anyReviewExpanded=Object.values(expandedReviews).some(Boolean);
+ const anyCardExpanded=Object.values(expandedCards).some(Boolean);
  useEffect(()=>{
-  if(visibleReviews.length<2)return;
-  const timer=window.setInterval(()=>setReviewIndex(i=>(i+1)%visibleReviews.length),seconds*1000);
+  if(cards.length<2||anyCardExpanded)return;
+  const timer=window.setInterval(()=>setCardIndex(i=>(i+1)%cards.length),5000);
   return()=>window.clearInterval(timer);
- },[visibleReviews.length,seconds,productId]);
- const card=cards[cardIndex%Math.max(1,cards.length)];
- const review=visibleReviews[reviewIndex%Math.max(1,visibleReviews.length)];
+ },[cards.length,productId,anyCardExpanded]);
  if(!cards.length&&!visibleReviews.length&&!error)return null;
- return <div className="sa-insights">
-  <style>{` .sa-insights{margin:64px 0 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:24px}.sa-insight{background:#faf8f5;border:1px solid #e6ded2;padding:clamp(22px,3vw,38px);min-width:0}.sa-insight .sa-kicker{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#967e60;margin:0 0 12px}.sa-insight h2{font-family:Georgia,serif;font-weight:400;font-size:clamp(24px,3vw,34px);margin:0 0 18px;color:#26211c}.sa-slide{min-height:116px;display:flex;align-items:center;line-height:1.85;color:#51483f;white-space:pre-line;overflow-wrap:anywhere;animation:sa-enter .35s ease both}.sa-slide p{margin:0}.sa-insight-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid #e6ded2;margin-top:22px;padding-top:15px;color:#84776b;font-size:12px}.sa-insight-nav{display:flex;gap:8px}.sa-insight-nav button{border:1px solid #d8cbbc;background:transparent;width:32px;height:32px;display:grid;place-items:center;cursor:pointer;color:#5b4b3b}.sa-review-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}.sa-avatar{width:44px;height:44px;border-radius:50%;background:#e9dfd1;display:grid;place-items:center;overflow:hidden;font-family:Georgia,serif;font-size:20px;flex-shrink:0}.sa-avatar img{width:100%;height:100%;object-fit:cover}.sa-stars{letter-spacing:2px;color:#a78048}.sa-review-photos{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.sa-review-photos img{width:74px;height:74px;object-fit:cover;border-radius:3px}.sa-insight .sa-empty{color:#85786a;font-size:14px}@keyframes sa-enter{from{opacity:.35;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.sa-slide{animation:none}}`}</style>
-  {cards.length>0&&<section className="sa-insight" aria-label="Fragrance experience">
-   <p className="sa-kicker">Discover the scent</p><h2>Fragrance Experience</h2>
-   <div className="sa-slide" key={card.id}><p>{card.content}</p></div>
-   <div className="sa-insight-foot"><span>{cardIndex+1} / {cards.length} · Fragrance notes &amp; impressions</span><div className="sa-insight-nav"><button type="button" aria-label="Previous experience" onClick={()=>setCardIndex(i=>(i-1+cards.length)%cards.length)}><ChevronLeft size={16}/></button><button type="button" aria-label="Next experience" onClick={()=>setCardIndex(i=>(i+1)%cards.length)}><ChevronRight size={16}/></button></div></div>
-  </section>}
-  {(visibleReviews.length>0||error)&&<section className="sa-insight" aria-label="Customer reviews">
-   <p className="sa-kicker">From our customers</p><h2>Customer Reviews</h2>
-   {error?<p className="sa-empty">{error}</p>:review&&<div className="sa-slide" key={review.id}><div style={{width:'100%'}}><div className="sa-review-head"><div className="sa-avatar">{review.avatar_url?<img src={review.avatar_url} alt="" loading="lazy"/>:(review.customer_name||'C').charAt(0).toUpperCase()}</div><div><strong>{review.customer_name}</strong><div className="sa-stars" aria-label={`${review.rating} out of 5 stars`}>{'★'.repeat(review.rating)}{'☆'.repeat(5-review.rating)}</div></div></div><p>{review.review_text}</p>{(photos[review.id]||[]).length>0&&<div className="sa-review-photos">{photos[review.id].map((url,i)=><img key={i} src={url} alt={`Customer photo ${i+1}`} loading="lazy"/>)}</div>}</div></div>}
-   {!error&&<div className="sa-insight-foot"><span>{reviews.length>=100?'99+':reviews.length} customer {reviews.length===1?'review':'reviews'}</span><div className="sa-insight-nav"><button type="button" aria-label="Previous review" onClick={()=>setReviewIndex(i=>(i-1+visibleReviews.length)%visibleReviews.length)}><ChevronLeft size={16}/></button><button type="button" aria-label="Next review" onClick={()=>setReviewIndex(i=>(i+1)%visibleReviews.length)}><ChevronRight size={16}/></button></div></div>}
-  </section>}
+ const card=cards[cardIndex%Math.max(1,cards.length)];
+ const shownReviews=visibleReviews.length>1?[...visibleReviews,...visibleReviews]:visibleReviews;
+ const reviewCount=visibleReviews.length;
+ const toggleReview=id=>setExpandedReviews(x=>({...x,[id]:!x[id]}));
+ const toggleCard=id=>setExpandedCards(x=>({...x,[id]:!x[id]}));
+ return <div className="sa-insights-v2">
+ <style>{`
+ .sa-insights-v2{margin:66px 0 26px;display:grid;gap:22px}
+ .sa-insights-v2 .sa-section{border:1px solid #e6ded2;background:#faf8f5;padding:clamp(22px,3vw,36px);min-width:0}
+ .sa-insights-v2 .sa-kicker{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#967e60;margin:0 0 9px}
+ .sa-insights-v2 h2{font:400 clamp(25px,3vw,34px) Georgia,serif;color:#26211c;margin:0}
+ .sa-insights-v2 .sa-section-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+  .sa-insights-v2 .sa-review-viewport{overflow:hidden;width:100%;min-width:0}
+ .sa-insights-v2 .sa-review-grid{display:flex;align-items:stretch;gap:14px;width:max-content;animation:sa-reviews-left var(--sa-duration,30s) linear infinite;will-change:transform}
+ .sa-insights-v2 .sa-review-grid.sa-still{animation:none}
+ .sa-insights-v2 .sa-review-grid.sa-paused{animation-play-state:paused}
+ @keyframes sa-reviews-left{from{transform:translateX(0)}to{transform:translateX(calc(-50% - 7px))}}
+ .sa-insights-v2 .sa-review-card{width:clamp(245px,27vw,315px);flex:0 0 clamp(245px,27vw,315px);background:#fff;border:1px solid #e6ded2;padding:20px;min-width:0;display:flex;flex-direction:column;gap:12px}
+ .sa-insights-v2 .sa-review-head{display:flex;align-items:center;gap:10px}
+ .sa-insights-v2 .sa-avatar{width:43px;height:43px;flex:none;border-radius:50%;overflow:hidden;background:#e9dfd1;display:grid;place-items:center;font:20px Georgia,serif}
+ .sa-insights-v2 .sa-avatar img{width:100%;height:100%;object-fit:cover}
+ .sa-insights-v2 .sa-name{font-size:13px;font-weight:600;overflow-wrap:anywhere}
+ .sa-insights-v2 .sa-stars{color:#b28a46;letter-spacing:2px;font-size:16px;line-height:1.4}
+ .sa-insights-v2 .sa-review-text,.sa-insights-v2 .sa-experience-text{font-size:13px;line-height:1.85;color:#544b42;white-space:pre-line;overflow-wrap:anywhere;margin:0}
+ .sa-insights-v2 .sa-clamp{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden}
+ .sa-insights-v2 .sa-expand{background:none;border:0;color:#927046;text-decoration:underline;cursor:pointer;padding:2px 0;font:inherit;font-size:12px;align-self:flex-start}
+ .sa-insights-v2 .sa-review-photos{display:flex;gap:8px;overflow-x:auto;max-width:100%;padding-bottom:3px}
+ .sa-insights-v2 .sa-photo-button{border:0;padding:0;background:none;cursor:zoom-in;flex:none}
+ .sa-insights-v2 .sa-photo-button img{width:88px;height:88px;object-fit:cover;border-radius:2px;display:block}
+ .sa-insights-v2 .sa-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:20px;padding-top:14px;border-top:1px solid #e6ded2;color:#84776b;font-size:12px}
+ .sa-insights-v2 .sa-nav{display:flex;gap:8px}
+ .sa-insights-v2 .sa-nav button{border:1px solid #d8cbbc;background:transparent;width:34px;height:34px;display:grid;place-items:center;cursor:pointer;color:#5b4b3b}
+ .sa-insights-v2 .sa-experience{max-width:100%}
+ .sa-insights-v2 .sa-photo-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:grid;place-items:center;padding:30px;cursor:zoom-out}
+ .sa-insights-v2 .sa-photo-modal img{max-width:92vw;max-height:86vh;object-fit:contain}
+ .sa-insights-v2 .sa-photo-close{position:absolute;right:22px;top:18px;background:white;border:0;padding:10px 14px;cursor:pointer}
+
+ @media(max-width:540px){.sa-insights-v2 .sa-review-card{width:260px;flex-basis:260px;padding:17px}}
+ @media(prefers-reduced-motion:reduce){.sa-insights-v2 .sa-review-grid{animation:none!important}.sa-insights-v2 .sa-review-viewport{overflow-x:auto}}
+ `}</style>
+ {(reviewCount>0||error)&&<section className="sa-section" aria-label="Customer reviews">
+  <div className="sa-section-head"><div><p className="sa-kicker">From our customers</p><h2>Customer Reviews</h2></div>{reviewCount>0&&<span className="sa-stars" aria-label="Customer star ratings">★★★★★</span>}</div>
+  {error&&<p role="status">{error}</p>}
+  <div className="sa-review-viewport" onMouseEnter={()=>setReviewPaused(true)} onMouseLeave={()=>setReviewPaused(false)} onFocusCapture={()=>setReviewPaused(true)} onBlurCapture={e=>{if(!e.currentTarget.contains(e.relatedTarget))setReviewPaused(false)}} onTouchStart={()=>setReviewPaused(true)} onTouchEnd={()=>setReviewPaused(false)}>
+  <div className={'sa-review-grid'+(reviewCount<2?' sa-still':'')+((reviewPaused||anyReviewExpanded||photoPreview)?' sa-paused':'')} style={{'--sa-duration':`${Math.max(1,reviewCount)*5}s`}}>{shownReviews.map((r,i)=><article key={`${r.id}-${i}`} className="sa-review-card" aria-hidden={i>=reviewCount?'true':undefined}>
+   <div className="sa-review-head"><div className="sa-avatar">{r.avatar_url?<img src={r.avatar_url} alt="" loading="lazy"/>:(r.customer_name||'C').charAt(0).toUpperCase()}</div><div><div className="sa-name">{r.customer_name}</div><div className="sa-stars" aria-label={`${r.rating} out of 5 stars`}>{'★'.repeat(Math.max(0,Math.min(5,r.rating)))}{'☆'.repeat(Math.max(0,5-r.rating))}</div></div></div>
+   <div><p className={'sa-review-text'+(expandedReviews[r.id]?'':' sa-clamp')}>{r.review_text}</p>{(r.review_text||'').length>110&&<button type="button" className="sa-expand" aria-expanded={!!expandedReviews[r.id]} tabIndex={i>=reviewCount?-1:0} onClick={()=>toggleReview(r.id)}>{expandedReviews[r.id]?'Show less':'Read more'}</button>}</div>
+   {(photos[r.id]||[]).length>0&&<div className="sa-review-photos">{photos[r.id].map((url,i)=><button className="sa-photo-button" type="button" key={i} tabIndex={i>=reviewCount?-1:0} onClick={()=>setPhotoPreview(url)} aria-label={`Open customer product photo ${i+1}`}><img src={url} alt={`Customer product photo ${i+1}`} loading="lazy"/></button>)}</div>}
+  </article>)}</div></div>
+  {reviewCount>0&&<div className="sa-foot"><span>{reviewCount>=100?'99+':reviewCount} customer {reviewCount===1?'review':'reviews'} · Scrolls right to left · 5 seconds per card</span></div>}
+ </section>}
+ {cards.length>0&&<section className="sa-section sa-experience" aria-label="Fragrance experience">
+  <div className="sa-section-head"><div><p className="sa-kicker">Discover the scent</p><h2>Fragrance Experience</h2></div></div>
+  <p className={'sa-experience-text'+(expandedCards[card.id]?'':' sa-clamp')}>{card.content}</p>
+  {(card.content||'').length>110&&<button className="sa-expand" type="button" aria-expanded={!!expandedCards[card.id]} onClick={()=>toggleCard(card.id)}>{expandedCards[card.id]?'Show less':'Read more'}</button>}
+  <div className="sa-foot"><span>{cardIndex+1} / {cards.length} · Fragrance notes &amp; impressions · Rotates every 5 seconds</span>{cards.length>1&&<div className="sa-nav"><button type="button" aria-label="Previous experience" onClick={()=>setCardIndex(i=>(i-1+cards.length)%cards.length)}><ChevronLeft size={16}/></button><button type="button" aria-label="Next experience" onClick={()=>setCardIndex(i=>(i+1)%cards.length)}><ChevronRight size={16}/></button></div>}</div>
+ </section>}
+ {photoPreview&&<div className="sa-photo-modal" role="dialog" aria-modal="true" aria-label="Customer product photo" onClick={()=>setPhotoPreview(null)}><button type="button" className="sa-photo-close" onClick={()=>setPhotoPreview(null)}>Close ×</button><img src={photoPreview} alt="Customer product photo enlarged"/></div>}
  </div>;
 }
 
