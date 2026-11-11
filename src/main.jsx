@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {BrowserRouter,Routes,Route,Link,useParams,useNavigate} from 'react-router-dom';
-import {ShoppingBag,Menu,X,ArrowRight,Plus,Minus,Trash2,Lock,LogOut,Package,ChevronLeft,ChevronRight} from 'lucide-react';
+import {ShoppingBag,ShoppingCart,Menu,X,ArrowRight,Plus,Minus,Trash2,Lock,LogOut,Package,ChevronLeft,ChevronRight} from 'lucide-react';
 import {supabase} from './supabase';
 import {demoProducts,money} from './data';
 import './style.css';
@@ -53,6 +53,37 @@ function whatsappDisplay(routing){
   return 'Contact details unavailable';
 }
 
+function WhatsAppMark(){return <svg viewBox="0 0 32 32" width="33" height="33" aria-hidden="true"><path fill="currentColor" d="M16 2.5A13.4 13.4 0 0 0 4.4 22.6L2.5 29.5l7.1-1.9A13.5 13.5 0 1 0 16 2.5Zm0 24.5a11 11 0 0 1-5.6-1.5l-.4-.2-4.2 1.1 1.1-4.1-.3-.4a11 11 0 1 1 9.4 4.6Zm6.1-8.2c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.7-1.7-1-1-1.7-2.1-1.9-2.4-.2-.3 0-.5.2-.7l.5-.6c.2-.2.2-.3.3-.5.1-.2 0-.4 0-.6l-1-2.3c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.7s1.2 3.1 1.4 3.3c.2.2 2.4 3.7 5.8 5.1.8.4 1.5.6 2 .7.8.2 1.6.2 2.2.1.7-.1 1.9-.8 2.2-1.6.3-.8.3-1.5.2-1.6-.1-.1-.3-.2-.6-.4Z"/></svg>}
+function SupportWidgets({routing,count}){
+ const [popupSettings,setPopupSettings]=useState({enabled:true,show_count:false,contact_count:'999+',contact_message:'customers have contacted our team',show_demo_label:true});
+ useEffect(()=>{let active=true;if(!supabase)return;supabase.from('support_popup_settings').select('enabled,show_count,contact_count,contact_message,show_demo_label').eq('id',1).maybeSingle().then(({data,error})=>{if(active&&data&&!error)setPopupSettings(data)});return()=>{active=false}},[]);
+ const [open,setOpen]=useState(false);
+ const [dismissed,setDismissed]=useState(()=>{try{return sessionStorage.getItem('sa-support-dismissed')==='1'}catch{return false}});
+ const [notice,setNotice]=useState('');
+ const location=useNavigate();
+ const route=window.location.pathname;
+ useEffect(()=>{if(!popupSettings.enabled||dismissed||route.startsWith('/checkout')||route.startsWith('/admin')||route==='/cart')return;const timer=setTimeout(()=>setOpen(true),20000);return()=>clearTimeout(timer)},[dismissed,route,popupSettings.enabled]);
+ const close=()=>{setOpen(false);setDismissed(true);try{sessionStorage.setItem('sa-support-dismissed','1')}catch{}};
+ const contact=()=>{
+  if(routing.loading){setNotice('Contact details are loading. Please try again shortly.');return}
+  if(routing.error){setNotice(routing.error);return}
+  const message='Hello SCENT ATELIER, I have a question about a fragrance or an order.';
+  let url=null;
+  if(routing.mode==='fixed'&&isValidWhatsAppNumber(routing.fixed_number))url='https://wa.me/'+cleanWhatsAppNumber(routing.fixed_number)+'?text='+encodeURIComponent(message);
+  if(routing.mode==='random'){
+   const valid=(routing.accounts||[]).filter(a=>isValidWhatsAppNumber(a.phone_number));
+   if(valid.length)url='https://wa.me/'+cleanWhatsAppNumber(valid[Math.floor(Math.random()*valid.length)].phone_number)+'?text='+encodeURIComponent(message);
+  }
+  if(routing.mode==='external')url=safeExternalWhatsAppUrl(routing.external_url,message);
+  if(!url){setNotice('WhatsApp support is temporarily unavailable. Please try again later.');return}
+  window.open(url,'_blank','noopener,noreferrer');close();
+ };
+ return <>
+  <div className="sa-floating-actions"><button type="button" className="sa-float sa-float-whatsapp" onClick={contact} aria-label="Contact us on WhatsApp" title="WhatsApp support"><WhatsAppMark/></button><Link to="/cart" className="sa-float sa-float-cart" aria-label={`Shopping cart, ${count} items`} title="View shopping cart"><ShoppingCart size={30} strokeWidth={2.1}/>{count>0&&<span className="sa-cart-count">{count>99?'99+':count}</span>}</Link></div>
+  {open&&!dismissed&&<div className="sa-support-popup" role="dialog" aria-label="Order assistance" aria-modal="false"><button className="sa-support-close" type="button" aria-label="Close support invitation" onClick={close}><X size={18}/></button><div className="sa-support-head"><span className="sa-support-logo"><WhatsAppMark/></span><div><strong>SCENT ATELIER</strong><small>Customer Support</small></div></div><h3>Need help with your order?</h3><p>Questions about a fragrance, shipping or your order? Our team is happy to help.</p>{popupSettings.show_count&&<p className="sa-demo-social-proof"><span>{popupSettings.contact_count} {popupSettings.contact_message}</span>{popupSettings.show_demo_label&&<small>Demo preview · illustrative figure</small>}</p>}<button className="sa-support-cta" type="button" onClick={contact}><WhatsAppMark/> Chat with us on WhatsApp</button><small className="sa-support-foot">We're here to help you shop with confidence.</small></div>}
+  {notice&&<div className="sa-support-notice" role="alert">{notice}<button onClick={()=>setNotice('')} aria-label="Dismiss notice">×</button></div>}
+ </>;
+}
 function App(){
  const whatsappRouting=useWhatsAppRouting();
  const [products,setProducts]=useState(demoProducts),[cart,setCart]=useState(()=>{try{return JSON.parse(localStorage.getItem('aura-cart')||'[]')}catch{return []}}),[menu,setMenu]=useState(false),[loading,setLoading]=useState(!!supabase);
@@ -65,6 +96,7 @@ function App(){
  const count=items.reduce((s,x)=>s+x.qty,0);
  return <><header className="header"><div className="topline">FRAGRANCE COLLECTION · ORDER ENQUIRIES VIA WHATSAPP</div><div className="nav wrap"><button className="icon mobile" aria-label="Toggle menu" onClick={()=>setMenu(!menu)}><Menu size={22}/></button><Link className="brand" to="/">SCENT <span>ATELIER</span></Link><nav className={menu?'open':''}><Link onClick={()=>setMenu(false)} to="/">Home</Link><Link onClick={()=>setMenu(false)} to="/shop">Shop All</Link><Link onClick={()=>setMenu(false)} to="/shop?category=Chanel">Chanel</Link><Link onClick={()=>setMenu(false)} to="/shop?category=Dior">Dior</Link><Link onClick={()=>setMenu(false)} to="/admin">Admin</Link></nav><Link to="/cart" className="bag"><ShoppingBag size={21}/><span>{count}</span></Link></div></header>
  <Routes><Route path="/" element={<Home products={products} loading={loading} add={add}/>}/><Route path="/shop" element={<Shop products={products} add={add}/>}/><Route path="/product/:id" element={<Detail products={products} add={add}/>}/><Route path="/cart" element={<Cart items={items} change={change}/>}/><Route path="/checkout" element={<WhatsAppCheckout items={items} routing={whatsappRouting}/>}/><Route path="/admin" element={<Admin refresh={refresh}/>}/><Route path="*" element={<section className="wrap section"><h1>Page not found</h1><Link to="/">Return home</Link></section>}/></Routes>
+ <SupportWidgets routing={whatsappRouting} count={count}/>
  <footer><div className="wrap footergrid"><div><Link className="brand" to="/">SCENT <span>ATELIER</span></Link><p>Designer fragrances, curated in one place.</p></div><div><b>Explore</b><Link to="/shop">All fragrances</Link><Link to="/cart">Your bag</Link></div><div><b>Information</b><p>Orders: WhatsApp {whatsappDisplay(whatsappRouting)}</p><p>Shipping and returns policies coming soon.</p></div></div><div className="wrap footnote">© {new Date().getFullYear()} SCENT ATELIER · Orders are confirmed personally via WhatsApp. No online payments are collected.</div></footer></>;
 }
 function galleryImages(p){return [...new Set([...(Array.isArray(p.images)?p.images:[]),p.image_url].filter(Boolean))].slice(0,8)}
@@ -105,7 +137,7 @@ function Gallery({p,detail=false}){
       <img src={images[current]||'/placeholder.svg'}
         alt={`${p.name} — image ${current+1}`}
         draggable="false" loading="lazy"
-        onClick={()=>{if(detail&&!ignoreClick.current)setZoom(true)}}/>
+        onClick={e=>{if(ignoreClick.current){e.stopPropagation();return}if(detail)setZoom(true)}}/>
       {images.length>1&&<>
         <button type="button" className="galleryarrow prev"
           aria-label="Previous image" onClick={()=>change(-1)}><ChevronLeft size={19}/></button>
@@ -129,9 +161,9 @@ function Gallery({p,detail=false}){
     </div>}
   </div>;
 }
-function ProductCard({p,add}){return <article className="product"><Gallery p={p}/><div className="productmeta"><span>{p.category} · {p.volume}</span><Link to={'/product/'+p.id}><h3>{p.name}</h3></Link><div className="productbottom"><strong>{money(p.price)}</strong><button disabled={p.stock<=0} onClick={()=>add(p)} className="smalladd" aria-label={'Add '+p.name+' to bag'}><Plus size={18}/></button></div></div></article>}
+function ProductCard({p,add}){const navigate=useNavigate();const openProduct=e=>{if(e.target.closest('button, a, input, select, textarea'))return;navigate('/product/'+p.id)};return <article className="product sa-clickable-product" onClick={openProduct} onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==='Enter'||e.key===' ')){e.preventDefault();navigate('/product/'+p.id)}}} role="link" tabIndex={0} aria-label={'View details for '+p.name}><Gallery p={p}/><div className="productmeta"><span>{p.category} · {p.volume}</span><Link to={'/product/'+p.id}><h3>{p.name}</h3></Link><div className="productbottom"><strong>{money(p.price)}</strong><button disabled={p.stock<=0} onClick={()=>add(p)} className="smalladd" aria-label={'Add '+p.name+' to bag'}><Plus size={18}/></button></div></div></article>}
 function Home({products,loading,add}){return <><section className="hero"><div className="heroimage"/><div className="wrap heroinside"><div className="herotext"><p className="eyebrow">DESIGNER FRAGRANCES</p><h1>Discover<br/>your next<br/><em>signature scent.</em></h1><p>Explore a curated selection of fragrances from iconic houses. All listed at $49, with availability confirmed before checkout.</p><Link className="btn dark" to="/shop">Explore the collection <ArrowRight size={17}/></Link></div></div></section><section className="wrap section"><div className="sectionheading"><div><p className="eyebrow">CURATED FOR YOU</p><h2>Featured fragrances</h2></div><Link className="underlink" to="/shop">View all fragrances <ArrowRight size={17}/></Link></div><div className="products">{products.filter(p=>p.featured).slice(0,4).map(p=><ProductCard key={p.id} p={p} add={add}/>)}</div>{loading&&<p>Loading products…</p>}</section><section className="statement"><p className="eyebrow">THE COLLECTION</p><h2>Many houses.<br/><em>One destination.</em></h2><p>Discover a growing selection of designer and niche fragrances.</p></section></>}
-function Shop({products,add}){const initial=new URLSearchParams(window.location.search).get('category')||'All';const [category,setCategory]=useState(initial);useEffect(()=>setCategory(new URLSearchParams(window.location.search).get('category')||'All'),[window.location.search]);const categories=['All',...new Set(products.map(p=>p.category))];return <main className="wrap section"><p className="eyebrow">DISCOVER YOUR SIGNATURE</p><h1 className="pagetitle">The collection</h1><p className="muted">Discover fragrances by brand. Product sizes and availability are being verified.</p><div className="filters">{categories.map(c=><button key={c} className={category===c?'selected':''} onClick={()=>setCategory(c)}>{c}</button>)}</div><div className="products">{products.filter(p=>category==='All'||p.category===category).map(p=><ProductCard key={p.id} p={p} add={add}/>)}</div>{!products.length&&<p>No products yet.</p>}</main>}
+function Shop({products,add}){const initial=new URLSearchParams(window.location.search).get('category')||'All';const [category,setCategory]=useState(initial);const [limit,setLimit]=useState(8);useEffect(()=>{setCategory(new URLSearchParams(window.location.search).get('category')||'All');setLimit(8)},[window.location.search]);const categories=['All',...new Set(products.map(p=>p.category))];const filtered=products.filter(p=>category==='All'||p.category===category);return <main className="wrap section"><p className="eyebrow">DISCOVER YOUR SIGNATURE</p><h1 className="pagetitle">The collection</h1><p className="muted">Discover fragrances by brand. Product sizes and availability are being verified.</p><div className="filters">{categories.map(c=><button key={c} className={category===c?'selected':''} onClick={()=>{setCategory(c);setLimit(8)}}>{c}</button>)}</div><div className="products">{filtered.slice(0,limit).map(p=><ProductCard key={p.id} p={p} add={add}/>)}</div>{filtered.length>limit&&<div className="sa-load-more"><button type="button" className="btn outline" onClick={()=>setLimit(n=>n+8)}>VIEW MORE PRODUCTS ({filtered.length-limit} remaining)</button></div>}{!filtered.length&&<p>No products found.</p>}</main>}
 // Editorial experience cards and customer reviews are intentionally separate.
 function ProductInsights({productId}){
  const [cards,setCards]=useState([]),[reviews,setReviews]=useState([]),[photos,setPhotos]=useState({});
