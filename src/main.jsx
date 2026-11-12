@@ -77,7 +77,8 @@ function SupportWidgets({routing,count}){
   }
   if(routing.mode==='external')url=safeExternalWhatsAppUrl(routing.external_url,message);
   if(!url){setNotice('WhatsApp support is temporarily unavailable. Please try again later.');return}
-  window.open(url,'_blank','noopener,noreferrer');close();
+  trackEvent('Contact',{contact_method:'WhatsApp',contact_context:open?'support_popup':'floating_button'});
+   window.open(url,'_blank','noopener,noreferrer');close();
  };
  return <>
   <div className="sa-floating-actions"><button type="button" className="sa-float sa-float-whatsapp" onClick={contact} aria-label="Contact us on WhatsApp" title="WhatsApp support"><WhatsAppMark/></button><Link to="/cart" className="sa-float sa-float-cart" aria-label={`Shopping cart, ${count} items`} title="View shopping cart"><ShoppingCart size={30} strokeWidth={2.1}/>{count>0&&<span className="sa-cart-count">{count>99?'99+':count}</span>}</Link></div>
