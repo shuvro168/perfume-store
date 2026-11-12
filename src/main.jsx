@@ -87,7 +87,7 @@ function SupportWidgets({routing,count}){
 }
 function PrivacyChoices(){
  const [optedOut,setOptedOut]=useState(()=>trackingOptedOut());
- return <button type="button" className="sa-privacy-link" onClick={()=>{const next=!optedOut;setTrackingOptOut(next);setOptedOut(next)}} aria-label="Toggle advertising tracking opt-out">{optedOut?'Enable optional advertising tracking':'Do not sell or share my personal information'}</button>;
+ return <button type="button" className="sa-privacy-link" onClick={()=>{const next=!optedOut;setTrackingOptOut(next);setOptedOut(next);window.location.reload()}} aria-label="Toggle advertising tracking opt-out">{optedOut?'Enable optional advertising tracking':'Do not sell or share my personal information'}</button>;
 }
 function PixelPageViews(){
  const location=useLocation();
