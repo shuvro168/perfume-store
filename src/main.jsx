@@ -1,10 +1,11 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {BrowserRouter,Routes,Route,Link,useParams,useNavigate} from 'react-router-dom';
+import {BrowserRouter,Routes,Route,Link,useParams,useNavigate,useLocation} from 'react-router-dom';
 import {ShoppingBag,ShoppingCart,Menu,X,ArrowRight,Plus,Minus,Trash2,ChevronLeft,ChevronRight} from 'lucide-react';
 import {supabase} from './supabase';
 import {demoProducts,money} from './data';
 import './style.css';
+import {trackPageView,trackEvent,productEvent,cartEvent} from './metaPixel';
 
 // Public routing configuration. API credentials must never be placed here.
 const DEFAULT_WHATSAPP_NUMBER='85262659737';
@@ -84,17 +85,23 @@ function SupportWidgets({routing,count}){
   {notice&&<div className="sa-support-notice" role="alert">{notice}<button onClick={()=>setNotice('')} aria-label="Dismiss notice">×</button></div>}
  </>;
 }
+function PixelPageViews(){
+ const location=useLocation();
+ useEffect(()=>{trackPageView()},[location.pathname,location.search]);
+ return null;
+}
 function App(){
  const whatsappRouting=useWhatsAppRouting();
  const [products,setProducts]=useState(demoProducts),[cart,setCart]=useState(()=>{try{return JSON.parse(localStorage.getItem('aura-cart')||'[]')}catch{return []}}),[menu,setMenu]=useState(false),[loading,setLoading]=useState(!!supabase);
  const refresh=async()=>{if(!supabase)return;setLoading(true);const {data,error}=await supabase.from('products').select('*').eq('active',true).order('created_at',{ascending:false});if(!error)setProducts(data||[]);else console.error(error);setLoading(false)};
  useEffect(()=>{refresh()},[]);
  useEffect(()=>localStorage.setItem('aura-cart',JSON.stringify(cart)),[cart]);
- const add=(product)=>{if(product.stock<=0)return;setCart(prev=>{const found=prev.find(x=>x.id===product.id);return found?prev.map(x=>x.id===product.id?{...x,qty:Math.min(x.qty+1,product.stock)}:x):[...prev,{id:product.id,qty:1}]})};
+ const add=(product)=>{if(product.stock<=0)return;trackEvent('AddToCart',productEvent(product));setCart(prev=>{const found=prev.find(x=>x.id===product.id);return found?prev.map(x=>x.id===product.id?{...x,qty:Math.min(x.qty+1,product.stock)}:x):[...prev,{id:product.id,qty:1}]})};
  const change=(id,delta)=>setCart(prev=>prev.map(x=>x.id===id?{...x,qty:Math.max(0,Math.min(x.qty+delta,products.find(p=>p.id===id)?.stock||0))}:x).filter(x=>x.qty>0));
  const items=cart.map(x=>({...x,product:products.find(p=>p.id===x.id)})).filter(x=>x.product&&x.product.active&&x.product.stock>0);
  const count=items.reduce((s,x)=>s+x.qty,0);
  return <><header className="header"><div className="topline">FRAGRANCE COLLECTION · ORDER ENQUIRIES VIA WHATSAPP</div><div className="nav wrap"><button className="icon mobile" aria-label="Toggle menu" onClick={()=>setMenu(!menu)}><Menu size={22}/></button><Link className="brand" to="/">SCENT <span>ATELIER</span></Link><nav className={menu?'open':''}><Link onClick={()=>setMenu(false)} to="/">Home</Link><Link onClick={()=>setMenu(false)} to="/shop">Shop All</Link><Link onClick={()=>setMenu(false)} to="/shop?category=Chanel">Chanel</Link><Link onClick={()=>setMenu(false)} to="/shop?category=Dior">Dior</Link></nav><Link to="/cart" className="bag"><ShoppingBag size={21}/><span>{count}</span></Link></div></header>
+ <PixelPageViews/>
  <Routes><Route path="/" element={<Home products={products} loading={loading} add={add}/>}/><Route path="/shop" element={<Shop products={products} add={add}/>}/><Route path="/product/:id" element={<Detail products={products} add={add}/>}/><Route path="/cart" element={<Cart items={items} change={change}/>}/><Route path="/checkout" element={<WhatsAppCheckout items={items} routing={whatsappRouting}/>}/><Route path="/admin/*" element={<section className="wrap section"><h1>Page not found</h1><Link to="/">Return home</Link></section>}/><Route path="*" element={<section className="wrap section"><h1>Page not found</h1><Link to="/">Return home</Link></section>}/></Routes>
  <SupportWidgets routing={whatsappRouting} count={count}/>
  <footer><div className="wrap footergrid"><div><Link className="brand" to="/">SCENT <span>ATELIER</span></Link><p>Designer fragrances, curated in one place.</p></div><div><b>Explore</b><Link to="/shop">All fragrances</Link><Link to="/cart">Your bag</Link></div><div><b>Information</b><p>Orders: WhatsApp {whatsappDisplay(whatsappRouting)}</p><p>Shipping and returns policies coming soon.</p></div></div><div className="wrap footnote">© {new Date().getFullYear()} SCENT ATELIER · Orders are confirmed personally via WhatsApp. No online payments are collected.</div></footer></>;
@@ -272,6 +279,7 @@ function Detail({products,add}){
  const {id}=useParams(),p=products.find(x=>x.id===id);
  const [added,setAdded]=useState(false);
  useEffect(()=>setAdded(false),[id]);
+ useEffect(()=>{if(p)trackEvent('ViewContent',productEvent(p))},[p?.id]);
  if(!p)return <main className="wrap section"><h1>Product not found</h1><Link to="/shop">Browse fragrances</Link></main>;
  const noteGroups=[['Top notes',p.top_notes],['Heart notes',p.heart_notes],['Base notes',p.base_notes]].filter(([,v])=>v);
  return <main className="wrap section luxury-detail-page">
@@ -298,6 +306,7 @@ function Detail({products,add}){
 function Cart({items,change}){const total=items.reduce((s,x)=>s+x.qty*x.product.price,0);return <main className="wrap section"><p className="eyebrow">YOUR SELECTION</p><h1 className="pagetitle">Shopping bag</h1>{items.length? <div className="cartlayout"><div>{items.map(x=><div className="cartrow" key={x.id}><img src={x.product.image_url||'/placeholder.svg'} alt=""/><div><Link to={'/product/'+x.id}><h3>{x.product.name}</h3></Link><p className="muted">{x.product.volume}</p><div className="quantity"><button onClick={()=>change(x.id,-1)} aria-label="Decrease"><Minus size={15}/></button>{x.qty}<button onClick={()=>change(x.id,1)} aria-label="Increase"><Plus size={15}/></button></div></div><strong>{money(x.product.price*x.qty)}</strong></div>)}</div><aside className="summary"><h3>Order summary</h3><div className="summaryline"><span>Subtotal</span><strong>{money(total)}</strong></div><p className="muted fine">Shipping, availability and final total are confirmed on WhatsApp.</p><Link className="btn dark wide" to="/checkout">Order via WhatsApp <ArrowRight size={16}/></Link><Link to="/shop" className="underlink">Continue shopping</Link></aside></div>:<div className="empty"><ShoppingBag size={42}/><h2>Your bag is empty</h2><p>Find something you'll love.</p><Link className="btn dark" to="/shop">Explore fragrances <ArrowRight size={16}/></Link></div>}</main>}
 
 function WhatsAppCheckout({items,routing}){
+  useEffect(()=>{if(items.length)trackEvent('InitiateCheckout',cartEvent(items))},[]);
   const [assignedAccount,setAssignedAccount]=useState(null);
   const total=items.reduce((sum,x)=>sum+x.qty*Number(x.product.price),0);
   const message=['Hello SCENT ATELIER!','', 'I would like to enquire about ordering these fragrances:', '',...items.map((x,i)=>`${i+1}. ${x.product.name}${x.product.volume?' ('+x.product.volume+')':''}\n   Quantity: ${x.qty}\n   Listed price: ${money(x.product.price)} each\n   Line subtotal: ${money(x.qty*Number(x.product.price))}`),'',`Listed subtotal: ${money(total)}`,'','Please confirm availability, shipping costs, final total, and how to complete my purchase. Thank you!'].join('\n');
@@ -326,7 +335,7 @@ function WhatsAppCheckout({items,routing}){
     }
   }
  if(!items.length)return <main className="wrap section"><h1 className="pagetitle">Your bag is empty</h1><Link className="btn dark" to="/shop">Continue shopping</Link></main>;
- return <main className="wrap section checkoutpage"><p className="eyebrow">SCENT ATELIER · PERSONAL ORDERING</p><h1 className="pagetitle">Complete your enquiry</h1><div className="cartlayout"><section className="panel wa-order-panel"><h2>Order personally via WhatsApp</h2><p>Review your selection, then contact our team in one click. Your selected fragrances and quantities will be included automatically in the message.</p><p className="muted fine">No payment is collected on this website. Product availability, delivery costs, final pricing and payment arrangements will be confirmed with you directly.</p>{whatsappUrl?<a className="btn dark wide" href={whatsappUrl} target="_blank" rel="noopener noreferrer">Order via WhatsApp <ArrowRight size={17}/></a>:<button className="btn dark wide" type="button" disabled>Order via WhatsApp <ArrowRight size={17}/></button>}{!whatsappUrl&&<p className="error">{routing.error|| (routing.loading?"Loading WhatsApp contact details…":"No valid WhatsApp destination is configured. Please contact our team.")}</p>}<p className="muted fine">WhatsApp: {displayedContact}</p><Link to="/cart" className="underlink">← Back to shopping bag</Link></section><aside className="summary"><h3>Your selection</h3>{items.map(x=><div className="summaryline" key={x.id}><span>{x.product.name} × {x.qty}</span><strong>{money(x.qty*Number(x.product.price))}</strong></div>)}<div className="summaryline"><span>Listed subtotal</span><strong>{money(total)}</strong></div><p className="muted fine">Shipping and taxes are not included. This is an enquiry, not a paid order.</p></aside></div></main>;
+ return <main className="wrap section checkoutpage"><p className="eyebrow">SCENT ATELIER · PERSONAL ORDERING</p><h1 className="pagetitle">Complete your enquiry</h1><div className="cartlayout"><section className="panel wa-order-panel"><h2>Order personally via WhatsApp</h2><p>Review your selection, then contact our team in one click. Your selected fragrances and quantities will be included automatically in the message.</p><p className="muted fine">No payment is collected on this website. Product availability, delivery costs, final pricing and payment arrangements will be confirmed with you directly.</p>{whatsappUrl?<a className="btn dark wide" href={whatsappUrl} target="_blank" rel="noopener noreferrer" onClick={()=>trackEvent('Contact',{...cartEvent(items),contact_method:'WhatsApp',contact_context:'checkout'})}>Order via WhatsApp <ArrowRight size={17}/></a>:<button className="btn dark wide" type="button" disabled>Order via WhatsApp <ArrowRight size={17}/></button>}{!whatsappUrl&&<p className="error">{routing.error|| (routing.loading?"Loading WhatsApp contact details…":"No valid WhatsApp destination is configured. Please contact our team.")}</p>}<p className="muted fine">WhatsApp: {displayedContact}</p><Link to="/cart" className="underlink">← Back to shopping bag</Link></section><aside className="summary"><h3>Your selection</h3>{items.map(x=><div className="summaryline" key={x.id}><span>{x.product.name} × {x.qty}</span><strong>{money(x.qty*Number(x.product.price))}</strong></div>)}<div className="summaryline"><span>Listed subtotal</span><strong>{money(total)}</strong></div><p className="muted fine">Shipping and taxes are not included. This is an enquiry, not a paid order.</p></aside></div></main>;
 }
 async function orderRequest(id,token){const r=await fetch('/.netlify/functions/order-status?id='+encodeURIComponent(id),{headers:{'X-Order-Token':token||''}});const data=await r.json();if(!r.ok)throw new Error(data.error||'Order unavailable');return data}
 function OrderStatus(){const {id}=useParams();const [order,setOrder]=useState(null),[error,setError]=useState('');const token=sessionStorage.getItem('sa-order-'+id)||'';
