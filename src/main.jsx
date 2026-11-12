@@ -5,7 +5,7 @@ import {ShoppingBag,ShoppingCart,Menu,X,ArrowRight,Plus,Minus,Trash2,ChevronLeft
 import {supabase} from './supabase';
 import {demoProducts,money} from './data';
 import './style.css';
-import {trackPageView,trackEvent,productEvent,cartEvent} from './metaPixel';
+import {trackPageView,trackEvent,productEvent,cartEvent,hasTrackingConsent,saveTrackingConsent,isGlobalPrivacyControlEnabled} from './metaPixel';
 
 // Public routing configuration. API credentials must never be placed here.
 const DEFAULT_WHATSAPP_NUMBER='85262659737';
@@ -85,6 +85,23 @@ function SupportWidgets({routing,count}){
   {notice&&<div className="sa-support-notice" role="alert">{notice}<button onClick={()=>setNotice('')} aria-label="Dismiss notice">×</button></div>}
  </>;
 }
+function AdTrackingConsent(){
+ const [choice,setChoice]=useState(()=>hasTrackingConsent()?'accepted':(isGlobalPrivacyControlEnabled()?'declined':(localStorage.getItem('sa-ad-consent')||'')));
+ const [show,setShow]=useState(()=>!localStorage.getItem('sa-ad-consent')&&!isGlobalPrivacyControlEnabled());
+ const decide=accept=>{
+   saveTrackingConsent(accept);
+   setChoice(accept?'accepted':'declined');
+   setShow(false);
+   if(accept&&!isGlobalPrivacyControlEnabled())trackPageView();
+ };
+ return <>
+   {show&&<section className="sa-consent-banner" role="dialog" aria-label="Advertising cookie preferences" aria-modal="false">
+     <div><strong>Your privacy matters</strong><p>With your permission, we use Meta Pixel to measure visits, shopping activity, and clicks to contact us on WhatsApp. We do not treat a WhatsApp click as a completed purchase. You can change your choice anytime.</p></div>
+     <div className="sa-consent-actions"><button type="button" className="sa-consent-decline" onClick={()=>decide(false)}>Decline</button><button type="button" className="sa-consent-accept" onClick={()=>decide(true)}>Allow advertising cookies</button></div>
+   </section>}
+   <button type="button" className="sa-privacy-settings" onClick={()=>setShow(true)} aria-label="Change advertising cookie preferences">Cookie preferences{choice==='accepted'?' · On':choice==='declined'?' · Off':''}</button>
+ </>;
+}
 function PixelPageViews(){
  const location=useLocation();
  useEffect(()=>{trackPageView()},[location.pathname,location.search]);
@@ -104,6 +121,7 @@ function App(){
  <PixelPageViews/>
  <Routes><Route path="/" element={<Home products={products} loading={loading} add={add}/>}/><Route path="/shop" element={<Shop products={products} add={add}/>}/><Route path="/product/:id" element={<Detail products={products} add={add}/>}/><Route path="/cart" element={<Cart items={items} change={change}/>}/><Route path="/checkout" element={<WhatsAppCheckout items={items} routing={whatsappRouting}/>}/><Route path="/admin/*" element={<section className="wrap section"><h1>Page not found</h1><Link to="/">Return home</Link></section>}/><Route path="*" element={<section className="wrap section"><h1>Page not found</h1><Link to="/">Return home</Link></section>}/></Routes>
  <SupportWidgets routing={whatsappRouting} count={count}/>
+ <AdTrackingConsent/>
  <footer><div className="wrap footergrid"><div><Link className="brand" to="/">SCENT <span>ATELIER</span></Link><p>Designer fragrances, curated in one place.</p></div><div><b>Explore</b><Link to="/shop">All fragrances</Link><Link to="/cart">Your bag</Link></div><div><b>Information</b><p>Orders: WhatsApp {whatsappDisplay(whatsappRouting)}</p><p>Shipping and returns policies coming soon.</p></div></div><div className="wrap footnote">© {new Date().getFullYear()} SCENT ATELIER · Orders are confirmed personally via WhatsApp. No online payments are collected.</div></footer></>;
 }
 function galleryImages(p){return [...new Set([...(Array.isArray(p.images)?p.images:[]),p.image_url].filter(Boolean))].slice(0,8)}
