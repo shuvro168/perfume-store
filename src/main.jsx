@@ -96,7 +96,7 @@ function App(){
  const refresh=async()=>{if(!supabase)return;setLoading(true);const {data,error}=await supabase.from('products').select('*').eq('active',true).order('created_at',{ascending:false});if(!error)setProducts(data||[]);else console.error(error);setLoading(false)};
  useEffect(()=>{refresh()},[]);
  useEffect(()=>localStorage.setItem('aura-cart',JSON.stringify(cart)),[cart]);
- const add=(product)=>{if(product.stock<=0)return;trackEvent('AddToCart',productEvent(product));setCart(prev=>{const found=prev.find(x=>x.id===product.id);return found?prev.map(x=>x.id===product.id?{...x,qty:Math.min(x.qty+1,product.stock)}:x):[...prev,{id:product.id,qty:1}]})};
+ const add=(product)=>{if(product.stock<=0)return;const existing=cart.find(x=>x.id===product.id);if(existing&&existing.qty>=product.stock)return;trackEvent('AddToCart',productEvent(product));setCart(prev=>{const found=prev.find(x=>x.id===product.id);return found?prev.map(x=>x.id===product.id?{...x,qty:Math.min(x.qty+1,product.stock)}:x):[...prev,{id:product.id,qty:1}]})};
  const change=(id,delta)=>setCart(prev=>prev.map(x=>x.id===id?{...x,qty:Math.max(0,Math.min(x.qty+delta,products.find(p=>p.id===id)?.stock||0))}:x).filter(x=>x.qty>0));
  const items=cart.map(x=>({...x,product:products.find(p=>p.id===x.id)})).filter(x=>x.product&&x.product.active&&x.product.stock>0);
  const count=items.reduce((s,x)=>s+x.qty,0);
@@ -306,7 +306,8 @@ function Detail({products,add}){
 function Cart({items,change}){const total=items.reduce((s,x)=>s+x.qty*x.product.price,0);return <main className="wrap section"><p className="eyebrow">YOUR SELECTION</p><h1 className="pagetitle">Shopping bag</h1>{items.length? <div className="cartlayout"><div>{items.map(x=><div className="cartrow" key={x.id}><img src={x.product.image_url||'/placeholder.svg'} alt=""/><div><Link to={'/product/'+x.id}><h3>{x.product.name}</h3></Link><p className="muted">{x.product.volume}</p><div className="quantity"><button onClick={()=>change(x.id,-1)} aria-label="Decrease"><Minus size={15}/></button>{x.qty}<button onClick={()=>change(x.id,1)} aria-label="Increase"><Plus size={15}/></button></div></div><strong>{money(x.product.price*x.qty)}</strong></div>)}</div><aside className="summary"><h3>Order summary</h3><div className="summaryline"><span>Subtotal</span><strong>{money(total)}</strong></div><p className="muted fine">Shipping, availability and final total are confirmed on WhatsApp.</p><Link className="btn dark wide" to="/checkout">Order via WhatsApp <ArrowRight size={16}/></Link><Link to="/shop" className="underlink">Continue shopping</Link></aside></div>:<div className="empty"><ShoppingBag size={42}/><h2>Your bag is empty</h2><p>Find something you'll love.</p><Link className="btn dark" to="/shop">Explore fragrances <ArrowRight size={16}/></Link></div>}</main>}
 
 function WhatsAppCheckout({items,routing}){
-  useEffect(()=>{if(items.length)trackEvent('InitiateCheckout',cartEvent(items))},[]);
+  const checkoutTracked=useRef(false);
+  useEffect(()=>{if(!checkoutTracked.current&&items.length){checkoutTracked.current=true;trackEvent('InitiateCheckout',cartEvent(items))}},[items]);
   const [assignedAccount,setAssignedAccount]=useState(null);
   const total=items.reduce((sum,x)=>sum+x.qty*Number(x.product.price),0);
   const message=['Hello SCENT ATELIER!','', 'I would like to enquire about ordering these fragrances:', '',...items.map((x,i)=>`${i+1}. ${x.product.name}${x.product.volume?' ('+x.product.volume+')':''}\n   Quantity: ${x.qty}\n   Listed price: ${money(x.product.price)} each\n   Line subtotal: ${money(x.qty*Number(x.product.price))}`),'',`Listed subtotal: ${money(total)}`,'','Please confirm availability, shipping costs, final total, and how to complete my purchase. Thank you!'].join('\n');
