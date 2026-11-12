@@ -385,3 +385,7 @@
 .sa-demo-social-proof{background:#f7f3ee;border-radius:7px;padding:11px 12px!important;margin:0 0 15px!important;color:#66513d!important;font-size:12px!important}
 .sa-demo-social-proof span{display:block;font-weight:600}
 .sa-demo-social-proof small{display:block;font-size:10px;color:#978879;margin-top:4px}
+
+/* Quiet privacy control; no blocking popup. */
+.sa-privacy-link{display:block;margin:18px auto 8px;border:0;background:transparent;text-decoration:underline;text-underline-offset:3px;color:#756c61;cursor:pointer;font-size:12px;padding:8px}
+.sa-privacy-link:focus-visible{outline:2px solid #a27c53;outline-offset:3px}
