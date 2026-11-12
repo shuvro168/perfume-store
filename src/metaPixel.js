@@ -3,20 +3,13 @@
 // consent required by applicable law before enabling advertising tracking.
 const PIXEL_ID='29645706435116337';
 let initialized=false;
-const CONSENT_KEY='sa-ad-consent';
-export function hasTrackingConsent(){
-  try{return window.localStorage.getItem(CONSENT_KEY)==='accepted'}catch{return false}
-}
-export function saveTrackingConsent(value){
-  try{window.localStorage.setItem(CONSENT_KEY,value?'accepted':'declined')}catch{}
-}
-export function isGlobalPrivacyControlEnabled(){return typeof navigator!=='undefined'&&navigator.globalPrivacyControl===true}
+export function trackingOptedOut(){try{return localStorage.getItem('sa-ad-tracking-optout')==='1'}catch{return false}}
+export function setTrackingOptOut(value){try{localStorage.setItem('sa-ad-tracking-optout',value?'1':'0')}catch{}}
 
 function allowed(){
   return typeof window!=='undefined' &&
     typeof navigator!=='undefined' &&
     navigator.globalPrivacyControl!==true &&
-    hasTrackingConsent() &&
     window.localStorage?.getItem('sa-ad-tracking-optout')!=='1';
 }
 function init(){
