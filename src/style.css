@@ -385,3 +385,15 @@
 .sa-demo-social-proof{background:#f7f3ee;border-radius:7px;padding:11px 12px!important;margin:0 0 15px!important;color:#66513d!important;font-size:12px!important}
 .sa-demo-social-proof span{display:block;font-weight:600}
 .sa-demo-social-proof small{display:block;font-size:10px;color:#978879;margin-top:4px}
+
+/* Optional advertising tracking: unobtrusive, accessible consent controls. */
+.sa-consent-banner{position:fixed;bottom:20px;left:20px;z-index:1200;width:min(560px,calc(100vw - 40px));padding:20px 22px;background:#faf8f4;color:#28231e;border:1px solid #d8cdbf;box-shadow:0 12px 36px #0002;border-radius:8px}
+.sa-consent-banner strong{font-family:Georgia,serif;font-size:18px;font-weight:500}
+.sa-consent-banner p{font-size:13px;line-height:1.65;margin:8px 0 14px;color:#665f56}
+.sa-consent-actions{display:flex;gap:10px;flex-wrap:wrap}
+.sa-consent-actions button{cursor:pointer;border-radius:3px;padding:11px 14px;font-size:12px;font-weight:600}
+.sa-consent-decline{border:1px solid #c6b8a8;background:transparent;color:#342b24}
+.sa-consent-accept{border:1px solid #29231d;background:#29231d;color:#fff}
+.sa-privacy-settings{display:block;margin:10px auto 24px;background:none;border:0;text-decoration:underline;text-underline-offset:3px;color:#756c61;cursor:pointer;font-size:12px}
+.sa-consent-actions button:focus-visible,.sa-privacy-settings:focus-visible{outline:2px solid #a27c53;outline-offset:3px}
+@media(max-width:600px){.sa-consent-banner{left:10px;bottom:10px;width:calc(100vw - 20px);padding:16px}.sa-consent-actions button{flex:1}}
