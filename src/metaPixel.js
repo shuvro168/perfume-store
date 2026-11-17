@@ -1,7 +1,7 @@
 // SCENT ATELIER Meta Pixel: browser-only events, never records a paid order.
 // Respect the browser's Global Privacy Control signal; obtain any additional
 // consent required by applicable law before enabling advertising tracking.
-const PIXEL_ID='1772155440511251';
+const PIXEL_ID='1161288523126497';
 let initialized=false;
 export function trackingOptedOut(){try{return localStorage.getItem('sa-ad-tracking-optout')==='1'}catch{return false}}
 export function setTrackingOptOut(value){try{localStorage.setItem('sa-ad-tracking-optout',value?'1':'0')}catch{}}
